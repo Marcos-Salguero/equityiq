@@ -26,7 +26,8 @@ report = Report("AAPL")
 report.summary()
 ```
 
-Output:
+## Output Format:
+```python
 ============================================================
   EQUITYIQ REPORT — Apple Inc. (AAPL)
 ============================================================
@@ -95,6 +96,7 @@ Output:
   Quality Score:    4/4
   Valuation Score:  0/2
 ============================================================
+```
 
 ## Usage
 
