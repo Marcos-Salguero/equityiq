@@ -279,41 +279,43 @@ class MultiplesValuation:
         return _apply_format(df, fmt_map).fillna("-")
 
     def buy_price_for_return(
-        self, target_return: float = 0.15, reference_year: int = 1
+            self, target_return: float = 0.15, reference_year: int = 1
     ) -> dict:
-        """
-        Computes the maximum price to pay today to achieve
-        a target annualized return, based on EV/FCF target price.
-
-        Args:
-            target_return: Desired annual return (default 15%)
-            reference_year: Which projected year to use as target (default 1)
-
-        Returns:
-            Dictionary with buy price, current price and difference
-        """
         sym = self.currency
         proj_years = self.projector._project_years()
         target_prices_raw = self.target_prices(formatted=False)
 
         year = proj_years[reference_year - 1]
-        target = float(target_prices_raw.loc["EV/FCF", year])
+        ev_fcf_target = float(target_prices_raw.loc["EV/FCF", year])
         years_ahead = reference_year
-        buy_price = target / ((1 + target_return) ** years_ahead)
-        diff_pct = (self._current_price - buy_price) / buy_price
+        buy_price = ev_fcf_target / ((1 + target_return) ** years_ahead)
+        current = self._current_price
+
+        # Recommendation logic
+        if current < buy_price:
+            verdict = "STRONG BUY — trading below max buy price"
+            recommendation = "STRONG BUY"
+        elif current < ev_fcf_target:
+            verdict = "BUY — below EV/FCF target price"
+            recommendation = "BUY"
+        elif current < ev_fcf_target * 1.3:
+            verdict = "HOLD — above target but within 30% premium"
+            recommendation = "HOLD"
+        else:
+            verdict = "SELL — significantly above EV/FCF target price"
+            recommendation = "SELL"
+
+        diff_pct = (current - buy_price) / buy_price
 
         return {
             "Target Return": _fmt_pct(target_return),
             "Reference Year": year,
-            "EV/FCF Target Price": f"{sym}{target:,.0f}",
+            "EV/FCF Target Price": f"{sym}{ev_fcf_target:,.0f}",
             "Max Buy Price": f"{sym}{buy_price:,.2f}",
-            "Current Price": f"{sym}{self._current_price:,.2f}",
+            "Current Price": f"{sym}{current:,.2f}",
             "Difference vs Current": _fmt_pct(diff_pct),
-            "Verdict": (
-                "BELOW target price — attractive entry"
-                if self._current_price <= buy_price
-                else "ABOVE target price — wait for better entry"
-            ),
+            "Recommendation": recommendation,
+            "Verdict": verdict,
         }
 
     def target_multiples(self) -> pd.Series:
